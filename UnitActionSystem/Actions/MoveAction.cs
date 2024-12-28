@@ -27,11 +27,16 @@ public class MoveAction : BaseAction
     private float movementCostPerUnit = 100f; // 1 birim mesafe için harcanacak puan
 
     #endregion
+
+    public event EventHandler OnStartMoving;
+    public event EventHandler OnStopMoving;
+    
     protected override void Awake()
     {
         base.Awake();
         targetPosition = transform.position;
-        ResetMovementPoints(); // İlk başta hareket puanlarını sıfırla
+        //ResetMovementPoints(); // İlk başta hareket puanlarını sıfırla
+        currentMovementPoints = maxMovementPoints;
     }
 
 
@@ -81,7 +86,7 @@ public class MoveAction : BaseAction
             // Dönüşü uygula
             transform.forward = Vector3.Slerp(transform.forward, moveDirection, rotationSpeed * Time.deltaTime);
 
-            animator.SetBool("isMoving", true);
+            
         }
         else
         {
@@ -92,10 +97,10 @@ public class MoveAction : BaseAction
 
     private void StopMoving()
     {
-        isActive = false;
-        animator.SetBool("isMoving", false);
-        onActionComplete(); // aksiyon bittiğinde burdan ateşle
+        
         Debug.Log("Movement stopped. Remaining movement points: " + currentMovementPoints / movementCostPerUnit);
+        OnStopMoving?.Invoke(this, EventArgs.Empty);
+        ActionComplete(); // aksiyon bittiğinde burdan ateşle
     }
     
     public void ResetMovementPoints()
@@ -110,9 +115,10 @@ public class MoveAction : BaseAction
 
     public override void TakeAction(Vector3 newTargetPosition,Action onActionComplete)
     {
-        this.onActionComplete = onActionComplete;
+        ActionStart(onActionComplete);
         targetPosition = newTargetPosition;
-        isActive = true;
+        OnStartMoving?.Invoke(this, EventArgs.Empty);
+        
     }
     public override string GetActionName()
     {

@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class Unit : MonoBehaviour
 {
@@ -19,10 +20,12 @@ public class Unit : MonoBehaviour
 
     #region ActionPoints
 
-    private const int ACTION_POINTS_MAX = 5;
+    private const int ACTION_POINTS_MAX = 500;
     [SerializeField] private int actionPoints = ACTION_POINTS_MAX;
 
     #endregion
+
+    [FormerlySerializedAs("unitID")] public int teamID;
 
     [SerializeField] private bool isEnemy;
     
@@ -108,6 +111,16 @@ public class Unit : MonoBehaviour
     public bool IsEnemy()
     {
         return isEnemy;
+    }
+
+    public void Damage()
+    {
+        Debug.Log(transform+"Damage");
+    }
+
+    public Vector3 GetUnitWorldPosition()
+    {
+       return transform.position;     
     }
     
 }
