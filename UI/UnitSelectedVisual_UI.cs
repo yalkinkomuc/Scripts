@@ -5,87 +5,102 @@ using UnityEngine;
 public class UnitSelectedVisual_UI : MonoBehaviour
 {
     [SerializeField] private Unit unit;
-    
-    [SerializeField] private BowRangeAction bowRangeAction;
-    
-    
-      
-    
-    
-    
-    private MeshRenderer meshRenderer;
+    public MeshRenderer selectedCircleMeshRenderer;
+
     private void Awake()
     {
-        meshRenderer = GetComponent<MeshRenderer>();
+        // Ensure we have the MeshRenderer
+        if (selectedCircleMeshRenderer == null)
+        {
+            selectedCircleMeshRenderer = GetComponent<MeshRenderer>();
+        }
+        
+        // Başlangıçta kesinlikle gizli olsun
+        if (selectedCircleMeshRenderer != null)
+        {
+            selectedCircleMeshRenderer.enabled = false;
+        }
     }
 
     private void Start()
     {
-        UnitActionSystem.Instance.OnSelectedUnitChanged += UnitActionSystem_OnSelectedUnitChanged;
+        // Event'leri bağlamadan önce visual'ı gizle
+        HideVisual();
         
+        UnitActionSystem.Instance.OnSelectedUnitChanged += UnitActionSystem_OnSelectedUnitChanged;
+        UnitActionSystem.Instance.OnSelectedActionChanged += UnitActionSystem_OnSelectedActionChanged;
+        
+        // İlk update'i bir frame geciktir
+        Invoke("UpdateVisual", 0.1f);
+    }
+
+    private void Update()
+    {
+        // Eğer BowAction seçiliyse her frame güncelle
+        BaseAction selectedAction = UnitActionSystem.Instance.GetSelectedAction();
+        if (selectedAction is BowRangeAction)
+        {
+            UpdateVisual();
+        }
+    }
+
+    private void UnitActionSystem_OnSelectedUnitChanged(object sender, EventArgs e)
+    {
         UpdateVisual();
     }
 
-   
-
-
-    private void UnitActionSystem_OnSelectedUnitChanged(object sender,EventArgs empty)
+    private void UnitActionSystem_OnSelectedActionChanged(object sender, EventArgs e)
     {
-       UpdateVisual();
-    }
-    
-    public void UpdateVisual()
-    {
-        if (UnitActionSystem.Instance.GetSelectedUnit() == unit)
-        {
-            meshRenderer.enabled = true;
-        }
-        else
-        {
-            meshRenderer.enabled = false;
-        }
+        UpdateVisual();
     }
 
-
-   
-
-    private void ShowTargetsInRange()
+    private void UpdateVisual()
     {
-        List<Unit> targets = bowRangeAction.GetValidTargetListWithSphere(bowRangeAction.bowRange);  // Menzildeki hedefleri al
+        Unit selectedUnit = UnitActionSystem.Instance.GetSelectedUnit();
+        BaseAction selectedAction = UnitActionSystem.Instance.GetSelectedAction();
 
-        foreach (Unit target in targets)
+        // Önce circle'ı gizle
+        HideVisual();
+
+        // Eğer bu unit seçili unit ise her zaman göster
+        if (unit == selectedUnit)
         {
-            UnitSelectedVisual_UI targetVisualUI = target.GetComponent<UnitSelectedVisual_UI>();  // Hedefin görselini kontrol et
-            if (targetVisualUI != null)
+            ShowVisual();
+            return;
+        }
+
+        // Eğer BowAction seçili ve bu unit hedef olabilecek bir düşmansa göster
+        if (selectedAction is BowRangeAction bowAction)
+        {
+            List<Unit> validTargets = bowAction.GetValidTargetListWithSphere(bowAction.GetMaxShootDistance());
+            if (validTargets.Contains(unit))
             {
-                targetVisualUI.ShowVisual();  // Hedefin görselini aktif et
+                ShowVisual();
             }
         }
     }
-    
-    private void ClearTargetVisuals()
-    {
-        List<Unit> targets = bowRangeAction.GetValidTargetListWithSphere(bowRangeAction.bowRange);  // Menzildeki hedefleri al
 
-        foreach (Unit target in targets)
-        {
-            UnitSelectedVisual_UI targetVisualUI = target.GetComponent<UnitSelectedVisual_UI>();
-            if (targetVisualUI != null)
-            {
-                targetVisualUI.HideVisual();  // Hedefin görselini gizle
-            }
-        }
-    }
-    
-    
-    public void ShowVisual()
+    private void ShowVisual()
     {
-        meshRenderer.enabled = true;  // Hedefi göster
+        if (selectedCircleMeshRenderer != null)
+        {
+            selectedCircleMeshRenderer.enabled = true;
+            //selectedCircleMeshRenderer.material.color = Color.green; 
+        }
     }
 
     public void HideVisual()
     {
-        meshRenderer.enabled = false;  // Hedefi gizle
+        if (selectedCircleMeshRenderer != null)
+        {
+            selectedCircleMeshRenderer.enabled = false; 
+            
+        }
     }
-    
+
+    private void OnDestroy()
+    {
+        UnitActionSystem.Instance.OnSelectedUnitChanged -= UnitActionSystem_OnSelectedUnitChanged;
+        UnitActionSystem.Instance.OnSelectedActionChanged -= UnitActionSystem_OnSelectedActionChanged;
+    }
 }

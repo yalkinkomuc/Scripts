@@ -23,29 +23,50 @@ public class UnitAnimator : MonoBehaviour
         }
     }
 
+  
+
+
+    #region Bow Range Action
+    
+    private void BowRangeAction_OnShootAnimStarted(object sender, EventArgs e)
+    {
+        animator.SetTrigger("Shoot");
+    }
+    
     private void BowRangeAction_OnArrowFired(object sender, BowRangeAction.OnArrowFiredEventArgs e)
     {
-        
-        // Ok fırlatılacak
+        animator.SetTrigger("Shoot");
+
         Transform arrowProjectileTransform = Instantiate(arrowProjectilePrefab, shootPointTransform.position, Quaternion.identity);
-        BulletProjectile arrowProjectile = arrowProjectileTransform.GetComponent<BulletProjectile>();
+        ArrowProjectile arrowProjectile = arrowProjectileTransform.GetComponent<ArrowProjectile>();
 
         Vector3 targetUnitShootAtPosition = e.targetUnit.GetUnitWorldPosition();
-        
         targetUnitShootAtPosition.y = shootPointTransform.position.y;
-        
-        arrowProjectile.Setup(targetUnitShootAtPosition);  // Hedef birimini atıyoruz
+    
+        arrowProjectile.Setup(targetUnitShootAtPosition, e.targetUnit);
+    
+        // BowRangeAction'dan damage değerini al
+        BowRangeAction bowRangeAction = sender as BowRangeAction;
+        if (bowRangeAction != null)
+        {
+            arrowProjectile.OnArrowHit += (s, args) => {
+                if (args.targetUnit != null)
+                {
+                    args.targetUnit.Damage(bowRangeAction.GetDamageAmount());
+                }
+            };
+        }
     }
-
+    
     private void BowRangeAction_OnShootCompleted(object sender, EventArgs e)
     {
         animator.ResetTrigger("Shoot");
     }
 
-    private void BowRangeAction_OnShootAnimStarted(object sender, EventArgs e)
-    {
-        animator.SetTrigger("Shoot");
-    }
+#endregion
+   
+
+    #region  Move Anim Region
 
     private void MoveAction_OnStartMoving(object sender, EventArgs e)
     {
@@ -56,4 +77,8 @@ public class UnitAnimator : MonoBehaviour
     {
         animator.SetBool("isMoving", false);
     }
+
+    #endregion
+    
+    
 }

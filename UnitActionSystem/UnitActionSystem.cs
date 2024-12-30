@@ -12,6 +12,9 @@ public class UnitActionSystem : MonoBehaviour
    
    private bool isBusy;
    
+   private MovementRangeVisualizer currentRangeVisualizer;
+   private MoveAction currentMoveAction;
+   
    #region EventHandlers
 
    public event EventHandler OnSelectedUnitChanged;
@@ -50,50 +53,57 @@ public class UnitActionSystem : MonoBehaviour
 
    private void Update()
    {
-
-      if (isBusy)
+      if (isBusy || !TurnSystem.instance.IsPlayerTurn() || EventSystem.current.IsPointerOverGameObject())
       {
+         return;
+      }
+
+      // Mouse pozisyonunu kontrol et ve path'i güncelle
+      if (selectedAction is MoveAction moveAction)
+      {
+         Vector3 mousePosition = MouseWorld.GetMouseWorldPosition();
+         moveAction.ShowPath(mousePosition);
          
-         return;
+         if (currentRangeVisualizer == null)
+         {
+            currentRangeVisualizer = selectedUnit.GetComponent<MovementRangeVisualizer>();
+            if (currentRangeVisualizer == null)
+            {
+               currentRangeVisualizer = selectedUnit.gameObject.AddComponent<MovementRangeVisualizer>();
+            }
+         }
+         
+         float maxRange = moveAction.GetMaxMovementPoints() / moveAction.GetMovementCostPerUnit();
+         currentRangeVisualizer.ShowRange(maxRange);
       }
 
-      if (!TurnSystem.instance.IsPlayerTurn())
+      if (Input.GetMouseButtonDown(0))
       {
-         return;
-      }
-
-      if (EventSystem.current.IsPointerOverGameObject())
-      {
-         return;
-      }
-      
-      if (TryHandleUnitSelection())
-      {
-         return;
-      }
-
+         if (TryHandleUnitSelection())
+         {
+            return;
+         }
          HandleSelectedAction();
-       
+      }
    }
 
    #region UnitSelection
 
    private void HandleSelectedAction()
    {
-      if (Input.GetMouseButtonDown(0))
+      if (selectedUnit == null || selectedAction == null)
       {
-         if (!selectedUnit.TrySpendActionPointsToTakeAction(selectedAction))
-         {
-            return;
-         }
-         
-         SetBusy();
-         selectedAction.TakeAction(MouseWorld.GetMouseWorldPosition(),ClearBusy);
-         
-         OnActionStarted?.Invoke(this, EventArgs.Empty);
-       
+         return;
       }
 
+      if (!selectedUnit.TrySpendActionPointsToTakeAction(selectedAction))
+      {
+         return;
+      }
+
+      SetBusy();
+      selectedAction.TakeAction(MouseWorld.GetMouseWorldPosition(), ClearBusy);
+      OnActionStarted?.Invoke(this, EventArgs.Empty);
    }
    
    private bool TryHandleUnitSelection() // kameradan ray çizip mouse pozisyonunda unit var mı diye checkliyoruz.
@@ -127,7 +137,6 @@ public class UnitActionSystem : MonoBehaviour
 
 
    
-  
    
    #endregion
 
@@ -165,11 +174,24 @@ public class UnitActionSystem : MonoBehaviour
 
    private void SetSelectedUnit(Unit unit)
    {
+      // Önceki unit'in görsellerini temizle
+      if (selectedUnit != null)
+      {
+         if (currentMoveAction != null)
+         {
+            currentMoveAction.HidePath();
+         }
+         if (currentRangeVisualizer != null)
+         {
+            currentRangeVisualizer.HideRange();
+         }
+      }
+
+      // Yeni unit'i seç
       selectedUnit = unit;
       SetSelectedAction(unit.GetMoveAction());
       
       OnSelectedUnitChanged?.Invoke(this, EventArgs.Empty);
-      
    }
 
    
@@ -178,6 +200,34 @@ public class UnitActionSystem : MonoBehaviour
    public void SetSelectedAction(BaseAction baseAction)
    {
       selectedAction = baseAction;
+
+      if (selectedAction is MoveAction moveAction)
+      {
+         currentMoveAction = moveAction;
+         
+         // Range visualizer'ı kontrol et ve yoksa ekle
+         currentRangeVisualizer = selectedUnit.GetComponent<MovementRangeVisualizer>();
+         if (currentRangeVisualizer == null)
+         {
+            currentRangeVisualizer = selectedUnit.gameObject.AddComponent<MovementRangeVisualizer>();
+         }
+
+         float maxRange = moveAction.GetMaxMovementPoints() / moveAction.GetMovementCostPerUnit();
+         currentRangeVisualizer.ShowRange(maxRange);
+      }
+      else
+      {
+         // Başka bir aksiyon seçildiğinde gösterimleri kapat
+         if (currentMoveAction != null)
+         {
+            currentMoveAction.HidePath();
+         }
+         if (currentRangeVisualizer != null)
+         {
+            currentRangeVisualizer.HideRange();
+         }
+      }
+
       OnSelectedActionChanged?.Invoke(this, EventArgs.Empty);
    }
 

@@ -6,6 +6,9 @@ public class MouseWorld : MonoBehaviour
     
     private static MouseWorld instance;
     [SerializeField] private LayerMask mousePlaneLayerMask;
+    
+    public static event EventHandler<Vector3> OnMousePositionChanged;
+    private static Vector3 lastMousePosition;
 
     private void Awake()
     {
@@ -16,8 +19,15 @@ public class MouseWorld : MonoBehaviour
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         Physics.Raycast(ray, out RaycastHit raycastHit, float.MaxValue, instance.mousePlaneLayerMask);
-        return raycastHit.point;
+        Vector3 currentPosition = raycastHit.point;
 
+        if (currentPosition != lastMousePosition)
+        {
+            lastMousePosition = currentPosition;
+            OnMousePositionChanged?.Invoke(null, currentPosition);
+        }
+
+        return currentPosition;
     }
     
 }

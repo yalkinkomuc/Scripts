@@ -1,13 +1,16 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Collections;
 
-public class BowRangeAction : BaseAction
+public class BowRangeAction : BaseAction, ITargetVisualAction
 {
     [Header("Bow Shoot Information")]
     [SerializeField] public int bowRange;
     [SerializeField] private Transform shootPosition;
     [SerializeField] private float aimDuration = 1;
+    [SerializeField] private int damageAmount = 10;
+    [SerializeField] private GameObject arrowPrefab;
 
     private State state;
     private float stateTimer;
@@ -96,7 +99,7 @@ public class BowRangeAction : BaseAction
                 break;
             case State.Shooting:
                 state = State.Cooloff;
-                stateTimer = 0.5f;
+                stateTimer = 0.35f; // değişebilir 0.5f ti normalde
                 break;
             case State.Cooloff:
                 ActionComplete();
@@ -106,45 +109,45 @@ public class BowRangeAction : BaseAction
 
     private void ShootArrow()
     {
-        
-        
-        // Ok fırlatılacak
         OnArrowFired?.Invoke(this, new OnArrowFiredEventArgs
         {
             shootingUnit = unit,
-            targetUnit = targetUnit// Ok hedef birimin pozisyonuna gitmeli
+            targetUnit = targetUnit
         });
+    }
+
+    private void ArrowProjectile_OnHit(object sender, ArrowProjectile.OnArrowHitEventArgs e)
+    {
+        if (e.targetUnit != null)
+        {
+            e.targetUnit.Damage(damageAmount);
+            Debug.Log(" VURDUMM");
+        }
+        
+        // Event listener'ı temizle
+        ((ArrowProjectile)sender).OnArrowHit -= ArrowProjectile_OnHit;
     }
 
     public override void TakeAction(Vector3 worldPosition, Action onActionComplete)
     {
-
-        
-        
         targetUnit = GetValidTarget(bowRange);
         
-        if (targetUnit == null)
-        {
-            
-            // Eğer hedef yoksa aksiyonu sonlandır
-            ActionComplete();
-            return;  // Hiçbir işlem yapılmaz
-        }
+        // Önce ActionStart'ı çağır, sonra kontrolleri yap
         ActionStart(onActionComplete);
+
+        if (targetUnit == null || targetUnit == unit)
+        {
+            // Hedef yoksa veya kendisiyse direkt bitir
+            ActionComplete();
+            return;
+        }
+        
         state = State.Aiming;
         stateTimer = aimDuration;
         canShootArrow = true;
-        
-        
     }
 
 
-   
-    
-
-    
-    
-    
     public override int GetActionPointsCost()
     {
 
@@ -156,7 +159,10 @@ public class BowRangeAction : BaseAction
         return 3;
     }
 
-   
+    public override List<Unit> GetValidTargetListWithSphere(float radius)
+    {
+        return base.GetValidTargetListWithSphere(bowRange);
+    }
 
 
     // private void OnDrawGizmos()
@@ -180,4 +186,21 @@ public class BowRangeAction : BaseAction
     //     // Hedefin geçerli olup olmadığını kontrol et
     //     return base.GetValidTarget(bowRange);
     // }
+
+    public int GetDamageAmount()
+    {
+        return damageAmount;
+    }
+
+    public int GetMaxShootDistance()
+    {
+        return bowRange;
+    }
+
+    public bool ShouldShowTargetVisual(Unit targetUnit)
+    {
+        // GetValidTargetList yerine GetValidTargetListWithSphere kullanıyoruz
+        List<Unit> validTargets = GetValidTargetListWithSphere(bowRange);
+        return validTargets.Contains(targetUnit);
+    }
 }

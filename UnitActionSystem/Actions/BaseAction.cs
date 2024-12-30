@@ -42,63 +42,78 @@ public abstract class BaseAction : MonoBehaviour
     public virtual Unit GetValidTarget(float attackRange)
     {
         Vector3 mouseWorldPosition = MouseWorld.GetMouseWorldPosition();
-        Vector3 rayOrigin = transform.position + Vector3.up * 1.5f;
+        Ray cameraRay = Camera.main.ScreenPointToRay(Input.mousePosition);
 
-        // Fare pozisyonuna doğru bir yön oluştur
-        Vector3 rayDirection = (mouseWorldPosition - rayOrigin).normalized;
-
-        // Ray'i çizmeye başla
-        Ray ray = new Ray(rayOrigin, rayDirection);
-
-        Debug.DrawRay(ray.origin, rayDirection * attackRange, Color.red, 10f);
-
-        if (Physics.Raycast(ray, out RaycastHit hit, attackRange))
+        if (Physics.Raycast(cameraRay, out RaycastHit cameraHit, float.MaxValue))
         {
-            Unit targetUnit = hit.collider.GetComponent<Unit>();
+            Unit targetUnit = cameraHit.collider.GetComponent<Unit>();
+            
+            if (targetUnit != null && unit.teamID != targetUnit.teamID) // düşman checkini ve takım kontrolünü burdan yapıyoruz
+            {
+                // Sabit yükseklikte başlangıç ve hedef noktaları
+                Vector3 shootPosition = new Vector3(transform.position.x, 1f, transform.position.z);
+                Vector3 targetPosition = new Vector3(targetUnit.transform.position.x, 1f, targetUnit.transform.position.z);
+                
+                Vector3 directionToTarget = (targetPosition - shootPosition).normalized;
+                float distanceToTarget = Vector3.Distance(shootPosition, targetPosition);
+                 
+                if (distanceToTarget > attackRange) return null; // menzil dışındaysa null döndür
 
-            if (targetUnit != null && unit.teamID != targetUnit.teamID)
-            {
-                Debug.Log($"Geçerli hedef bulundu: {targetUnit.name}");
-                return targetUnit;
-            }
-            else
-            {
-                Debug.Log("Ray hedefe çarptı ancak geçerli bir hedef yok.");
+                Debug.DrawRay(shootPosition, directionToTarget * distanceToTarget, Color.red, 1f);
+                if (Physics.Raycast(shootPosition, directionToTarget, out RaycastHit lineOfSightHit, distanceToTarget)) // 
+                {
+                    Unit hitUnit = lineOfSightHit.collider.GetComponent<Unit>();
+                    if (hitUnit == targetUnit)
+                    {
+                        //Debug.Log($"Geçerli hedef bulundu: {targetUnit.name}");
+                        return targetUnit;
+                    }
+                }
+                //Debug.Log("Hedef görüş hattında değil veya engel var.");
             }
         }
-        // else
-        // {
-        //     Debug.Log("Ray herhangi bir objeye çarpmadı.");
-        // }
 
         return null;
     }
 
 
+
     
+
     public virtual List<Unit> GetValidTargetListWithSphere(float radius)
     {
         List<Unit> validTargets = new List<Unit>();
-        
-        Collider[] colliders = Physics.OverlapSphere(transform.position, radius,whatIsUnit);
+        Collider[] colliders = Physics.OverlapSphere(transform.position, radius, whatIsUnit);
 
-        foreach (Collider unitHitColliders in colliders)
+        foreach (Collider unitHitCollider in colliders)
         {
-            Unit targetUnit = unitHitColliders.GetComponent<Unit>();
+            if (unitHitCollider == null) continue; // Null kontrolü
+
+            Unit targetUnit = unitHitCollider.GetComponent<Unit>();
 
             if (targetUnit != null && unit.teamID != targetUnit.teamID)
             {
-                validTargets.Add(targetUnit); // Geçerli hedefi listeye ekle
-                Debug.Log($"Geçerli hedef (Sphere) bulundu: {targetUnit.name}");
+                // Görüş hattı kontrolü
+                Vector3 directionToTarget = (targetUnit.transform.position - transform.position).normalized;
+                if (!Physics.Raycast(transform.position, directionToTarget, out RaycastHit hit, radius))
+                {
+                    // Eğer bir engel yoksa listeye ekle
+                    validTargets.Add(targetUnit);
+                    //Debug.Log($"Geçerli hedef (Sphere) bulundu: {targetUnit.name}");
+                }
+                else if (hit.collider.GetComponent<Unit>() == targetUnit)
+                {
+                    // Eğer ray doğrudan hedefi vuruyorsa yine geçerli
+                    validTargets.Add(targetUnit);
+                   // Debug.Log($"Görüş hattıyla geçerli hedef bulundu: {targetUnit.name}");
+                }
             }
         }
 
         return validTargets;
     }
+       
 
-    
-    
-    
-    
+  
     
 }

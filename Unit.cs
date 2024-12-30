@@ -1,6 +1,8 @@
 using System;
 using UnityEngine;
 using UnityEngine.Serialization;
+using System.Collections.Generic;
+using System.Linq;
 
 public class Unit : MonoBehaviour
 {
@@ -12,6 +14,12 @@ public class Unit : MonoBehaviour
 
     #endregion
 
+    #region Health
+
+    [SerializeField] private HealthSystem healthSystem;
+
+    #endregion
+
     #region EventHandlers
 
     public static event EventHandler OnAnyActionPointsChanged;
@@ -20,7 +28,7 @@ public class Unit : MonoBehaviour
 
     #region ActionPoints
 
-    private const int ACTION_POINTS_MAX = 500;
+    private const int ACTION_POINTS_MAX = 5;
     [SerializeField] private int actionPoints = ACTION_POINTS_MAX;
 
     #endregion
@@ -29,17 +37,20 @@ public class Unit : MonoBehaviour
 
     [SerializeField] private bool isEnemy;
     
-    
+    [SerializeField] private int maxActionPoints = 5;
+
     private void Awake()
     {
+        healthSystem = GetComponent<HealthSystem>();
         moveAction = GetComponent<MoveAction>();
-        baseActionArray = GetComponents<BaseAction>();
+        baseActionArray = GetComponents<BaseAction>(); 
     }
 
     private void Start()
     {
         TurnSystem.instance.OnTurnChanged += TurnSystem_OnTurnChanged;
-        actionPoints = ACTION_POINTS_MAX;
+        actionPoints = maxActionPoints;
+        healthSystem.OnDead += HealthSystem_OnDead;
     }
 
     #region GetActionField
@@ -90,6 +101,18 @@ public class Unit : MonoBehaviour
         return actionPoints;
     }
 
+    public void ResetActionPoints()
+    {
+        actionPoints = maxActionPoints;
+
+        Debug.Log("Action Points Reset");
+    }
+
+    public BaseAction[] GetActions()
+    {
+        return GetComponents<BaseAction>();
+    }
+
     #endregion
 
     #region EventHandlers
@@ -106,6 +129,11 @@ public class Unit : MonoBehaviour
         
     }
 
+    private void HealthSystem_OnDead(object sender, EventArgs e)
+    {
+        Destroy(gameObject);
+    }
+
     #endregion
 
     public bool IsEnemy()
@@ -113,9 +141,11 @@ public class Unit : MonoBehaviour
         return isEnemy;
     }
 
-    public void Damage()
+    public void Damage(int damageAmount)
     {
-        Debug.Log(transform+"Damage");
+        healthSystem.Damage(damageAmount);
+        //Debug.Log(transform+"Damage");
+        
     }
 
     public Vector3 GetUnitWorldPosition()
